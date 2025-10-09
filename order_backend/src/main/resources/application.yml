@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: order_backend
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: order_tracking
+      auto-index-creation: true
