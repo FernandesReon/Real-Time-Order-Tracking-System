@@ -30,4 +30,12 @@ public class GlobalExceptionHandler {
         error.put("email", "User with this email already exists.");
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleUserException(UserNotFoundException exception) {
+        log.info("user exception :: {}", exception.getMessage());
+        Map<String, String> error = new HashMap<>();
+        error.put("user", "User not found with provided email.");
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
 }

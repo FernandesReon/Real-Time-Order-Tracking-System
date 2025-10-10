@@ -1,9 +1,14 @@
 spring:
   application:
     name: order_backend
+  config:
+    import: optional:file:.env
   data:
     mongodb:
       host: localhost
       port: 27017
       database: order_tracking
       auto-index-creation: true
+jwt:
+  secret-key: ${JWT_SECRET}
+  expiration-time: ${EXPIRATION_TIME}
