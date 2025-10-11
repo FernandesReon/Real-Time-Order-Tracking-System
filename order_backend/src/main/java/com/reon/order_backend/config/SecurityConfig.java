@@ -38,7 +38,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(
                         auth ->
                                 auth
-                                        .requestMatchers(publicUrls).permitAll())
+                                        .requestMatchers(publicUrls).permitAll()
+                                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN"))
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
