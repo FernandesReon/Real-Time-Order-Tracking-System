@@ -1,7 +1,7 @@
 package com.reon.order_backend.service.impl;
 
 import com.reon.order_backend.document.User;
-import com.reon.order_backend.dto.UserResponse;
+import com.reon.order_backend.dto.user.UserResponse;
 import com.reon.order_backend.exception.UserNotFoundException;
 import com.reon.order_backend.mapper.UserMapper;
 import com.reon.order_backend.repository.UserRepository;

@@ -38,4 +38,12 @@ public class GlobalExceptionHandler {
         error.put("user", "User not found with provided details.");
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleOrderException(OrderNotFoundException exception) {
+        log.info("order exception :: {}", exception.getMessage());
+        Map<String, String> error = new HashMap<>();
+        error.put("order", "Order not found");
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
 }

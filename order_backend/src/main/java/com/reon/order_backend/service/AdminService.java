@@ -1,6 +1,6 @@
 package com.reon.order_backend.service;
 
-import com.reon.order_backend.dto.UserResponse;
+import com.reon.order_backend.dto.user.UserResponse;
 import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 

@@ -1,6 +1,7 @@
 package com.reon.order_backend.document;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.bson.types.ObjectId;
@@ -18,10 +19,14 @@ import java.util.Map;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Document(collection = "user_orders")
+@Builder
+@Document(collection = "orders")
 public class Order {
     @Id
     private ObjectId id;
+    private ObjectId userId;    // which user has placed the order.
+
+    // todo: later create a product document..
     private List<String> items = new ArrayList<>();
     private Double amount;
     private Status status = Status.PENDING;

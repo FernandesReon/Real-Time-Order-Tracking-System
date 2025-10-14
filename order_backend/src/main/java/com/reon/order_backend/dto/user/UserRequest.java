@@ -1,4 +1,4 @@
-package com.reon.order_backend.dto;
+package com.reon.order_backend.dto.user;
 
 import jakarta.validation.constraints.*;
 import lombok.*;

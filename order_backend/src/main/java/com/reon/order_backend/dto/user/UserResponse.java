@@ -1,4 +1,4 @@
-package com.reon.order_backend.dto;
+package com.reon.order_backend.dto.user;
 
 import com.reon.order_backend.document.Order;
 import com.reon.order_backend.document.User;

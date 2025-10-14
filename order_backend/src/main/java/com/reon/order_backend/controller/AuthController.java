@@ -1,8 +1,8 @@
 package com.reon.order_backend.controller;
 
-import com.reon.order_backend.dto.UserLogin;
-import com.reon.order_backend.dto.UserRequest;
-import com.reon.order_backend.dto.UserResponse;
+import com.reon.order_backend.dto.user.UserLogin;
+import com.reon.order_backend.dto.user.UserRequest;
+import com.reon.order_backend.dto.user.UserResponse;
 import com.reon.order_backend.jwt.JwtResponse;
 import com.reon.order_backend.service.UserService;
 import jakarta.servlet.http.Cookie;

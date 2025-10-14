@@ -1,8 +1,8 @@
 package com.reon.order_backend.mapper;
 
 import com.reon.order_backend.document.User;
-import com.reon.order_backend.dto.UserRequest;
-import com.reon.order_backend.dto.UserResponse;
+import com.reon.order_backend.dto.user.UserRequest;
+import com.reon.order_backend.dto.user.UserResponse;
 import org.springframework.stereotype.Component;
 
 @Component

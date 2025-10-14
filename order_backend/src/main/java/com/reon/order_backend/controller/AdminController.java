@@ -1,6 +1,6 @@
 package com.reon.order_backend.controller;
 
-import com.reon.order_backend.dto.UserResponse;
+import com.reon.order_backend.dto.user.UserResponse;
 import com.reon.order_backend.service.AdminService;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
