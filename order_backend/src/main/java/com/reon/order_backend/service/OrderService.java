@@ -9,7 +9,7 @@ import org.springframework.data.domain.Page;
 public interface OrderService {
     OrderResponse createOrder(OrderCreation orderCreation, ObjectId id);
     Page<OrderResponse> fetchAllOrders(int pageNo, int pageSize, User user);
-    void cancelOrder(ObjectId orderId);
+    void cancelOrder(ObjectId orderId, User user);
 
-    OrderResponse fetchOrderViaId(ObjectId id);
+    OrderResponse fetchOrderViaId(ObjectId id, User user);
 }

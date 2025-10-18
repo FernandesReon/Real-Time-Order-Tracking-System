@@ -73,9 +73,13 @@ public class OrderController {
             name = "endpoint for cancelling order",
             path = "/cancel/{orderId}"
     )
-    public ResponseEntity<Void> cancelOrder(@PathVariable(name = "orderId")ObjectId orderId) {
+    public ResponseEntity<Void> cancelOrder(@PathVariable(name = "orderId")ObjectId orderId, Principal principal) {
         log.info("Order Controller :: Incoming request for cancelling order with id: {}", orderId);
-        orderService.cancelOrder(orderId);
+        User user = userRepository.findByEmail(principal.getName()).orElseThrow(
+                () -> new UserNotFoundException("User with provided details not found.")
+        );
+        orderService.cancelOrder(orderId, user);
+
         log.info("Order Controller :: Order with id: {} is cancelled successfully.", orderId);
         return ResponseEntity
                 .status(HttpStatus.NO_CONTENT)
@@ -87,9 +91,15 @@ public class OrderController {
             name = "endpoint for fetching specific order",
             path = "/fetch/{orderId}"
     )
-    public ResponseEntity<OrderResponse> getOrderById(@PathVariable(name = "orderId")ObjectId orderId) {
+    public ResponseEntity<OrderResponse> getOrderById(@PathVariable(name = "orderId")ObjectId orderId,
+                                                      Principal principal) {
         log.info("Order Controller :: Incoming request for fetching order with id: {}", orderId);
-        OrderResponse fetchedOrder = orderService.fetchOrderViaId(orderId);
+
+        User user = userRepository.findByEmail(principal.getName()).orElseThrow(
+                () -> new UserNotFoundException("User with provided details not found.")
+        );
+
+        OrderResponse fetchedOrder = orderService.fetchOrderViaId(orderId, user);
         log.info("Order Controller :: Order with id: {} is fetched successfully.", orderId);
         return ResponseEntity
                 .status(HttpStatus.OK)

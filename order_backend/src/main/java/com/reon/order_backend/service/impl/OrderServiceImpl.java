@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 @Slf4j
@@ -65,17 +64,30 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public void cancelOrder(ObjectId orderId) {
+    public void cancelOrder(ObjectId orderId, User user) {
         log.warn("Order Service :: Cancelling order with id: {}", orderId);
-        orderRepository.deleteById(orderId);
+        Order order = orderRepository.findById(orderId).orElseThrow(
+                () -> new OrderNotFoundException("Order not found with id: " +  orderId)
+        );
+
+        if (!order.getUserId().equals(user.getId())) {
+            throw new OrderNotFoundException("Order not found with id: " + orderId);
+        } else {
+            orderRepository.deleteById(orderId);
+        }
     }
 
     @Override
-    public OrderResponse fetchOrderViaId(ObjectId id) {
+    public OrderResponse fetchOrderViaId(ObjectId id, User user) {
         log.info("Order Service :: Fetching order with id: {}", id);
         Order order = orderRepository.findById(id).orElseThrow(
                 () -> new OrderNotFoundException("Order not found with id: " + id)
         );
+
+        if (!order.getUserId().equals(user.getId())) {
+            throw new OrderNotFoundException("Order not found with id: " + id);
+        }
+
         return OrderMapper.orderResponseToUser(order);
     }
 }
