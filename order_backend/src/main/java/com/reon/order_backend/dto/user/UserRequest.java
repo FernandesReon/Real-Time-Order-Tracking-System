@@ -6,6 +6,7 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class UserRequest {
     @NotBlank(message = "Name is required")
     @Pattern(

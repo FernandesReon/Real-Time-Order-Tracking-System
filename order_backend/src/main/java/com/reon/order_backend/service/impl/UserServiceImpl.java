@@ -25,12 +25,14 @@ import java.util.EnumSet;
 @Slf4j
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
 
-    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtUtils jwtUtils) {
+    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtUtils jwtUtils) {
         this.userRepository = userRepository;
+        this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
@@ -42,7 +44,7 @@ public class UserServiceImpl implements UserService {
             throw new EmailAlreadyExistsException("User with this email already exists.");
         }
         log.info("User Service :: New Registration in progress....");
-        User user = UserMapper.mapToEntity(request);
+        User user = userMapper.mapToEntity(request);
 
         log.info("User Service :: Encoding the password using BCrypt...");
         user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -55,7 +57,7 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
         log.info("User Service :: User saved: {}", request);
-        return UserMapper.responseToUser(savedUser);
+        return userMapper.responseToUser(savedUser);
     }
 
     @Override

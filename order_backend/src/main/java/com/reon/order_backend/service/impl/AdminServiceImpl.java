@@ -17,9 +17,11 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class AdminServiceImpl implements AdminService {
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
-    public AdminServiceImpl(UserRepository userRepository) {
+    public AdminServiceImpl(UserRepository userRepository, UserMapper userMapper) {
         this.userRepository = userRepository;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -27,7 +29,7 @@ public class AdminServiceImpl implements AdminService {
         log.info("Admin Service :: Fetching users from page: {} of size: {}", pageNo, pageSize);
         Pageable pageable = PageRequest.of(pageNo - 1, pageSize);
         Page<User> users = userRepository.findAll(pageable);
-        return users.map(UserMapper::responseToUser);
+        return users.map(userMapper::responseToUser);
     }
 
     @Override
@@ -37,7 +39,7 @@ public class AdminServiceImpl implements AdminService {
                 () -> new UserNotFoundException("User not found with provided details.")
         );
         log.info("Admin Service :: Fetched user with id: {}", id);
-        return UserMapper.responseToUser(user);
+        return userMapper.responseToUser(user);
     }
 
     @Override
@@ -47,6 +49,6 @@ public class AdminServiceImpl implements AdminService {
                 () -> new UserNotFoundException("User not found with provided details.")
         );
         log.info("Admin Service :: Fetched user with email: {}", email);
-        return UserMapper.responseToUser(user);
+        return userMapper.responseToUser(user);
     }
 }

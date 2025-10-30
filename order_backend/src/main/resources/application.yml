@@ -9,6 +9,20 @@ spring:
       port: 27017
       database: order_tracking
       auto-index-creation: true
+  kafka:
+    producer:
+      bootstrap-servers: localhost:9092
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+    consumer:
+      bootstrap-servers: localhost:9092
+      group-id: grp_orders
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: true
 jwt:
   secret-key: ${JWT_SECRET}
   expiration-time: ${EXPIRATION_TIME}

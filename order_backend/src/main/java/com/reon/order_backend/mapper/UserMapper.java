@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class UserMapper {
 
-    public static User mapToEntity(UserRequest dto) {
+    public User mapToEntity(UserRequest dto) {
         /*
         similar to:
             User user = new User();
@@ -22,7 +22,7 @@ public class UserMapper {
                 .build();
     }
 
-    public static UserResponse responseToUser(User user) {
+    public UserResponse responseToUser(User user) {
         /*
         similar to:
             UserResponse response = new UserResponse();

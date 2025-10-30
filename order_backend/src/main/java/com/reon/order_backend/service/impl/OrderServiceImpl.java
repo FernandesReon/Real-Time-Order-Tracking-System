@@ -2,6 +2,7 @@ package com.reon.order_backend.service.impl;
 
 import com.reon.order_backend.document.Order;
 import com.reon.order_backend.document.User;
+import com.reon.order_backend.dto.kafka.OrderEventDTO;
 import com.reon.order_backend.dto.order.OrderCreation;
 import com.reon.order_backend.dto.order.OrderResponse;
 import com.reon.order_backend.exception.OrderNotFoundException;
@@ -15,21 +16,27 @@ import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @Slf4j
 public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public OrderServiceImpl(OrderRepository orderRepository, UserRepository userRepository) {
+    public OrderServiceImpl(OrderRepository orderRepository, UserRepository userRepository,
+                            KafkaTemplate<String, Object> kafkaTemplate) {
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     @Override
@@ -51,6 +58,20 @@ public class OrderServiceImpl implements OrderService {
         );
         user.getOrderList().add(saveOrder);
         userRepository.save(user);
+
+        // Once's orders gets saved in database a new event will be generated and send to kafka topic
+        OrderEventDTO eventDTO = OrderEventDTO.builder()
+                .orderId(saveOrder.getId())
+                .userId(user.getId())
+                .email(user.getEmail())
+                .eventCreationTime(LocalDateTime.now())
+                .items(saveOrder.getItems())
+                .amount(saveOrder.getAmount())
+                .status(saveOrder.getStatus())
+                .build();
+
+        CompletableFuture<SendResult<String, Object>> orderEvent = kafkaTemplate.send("order_event", eventDTO);
+        log.info("Order Service :: Order event sent.. {}", orderEvent.join());
 
         return OrderMapper.orderResponseToUser(saveOrder);
     }
