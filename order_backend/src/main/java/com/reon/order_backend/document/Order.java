@@ -29,16 +29,17 @@ public class Order {
     // todo: later create a product document..
     private List<String> items = new ArrayList<>();
     private Double amount;
-    private Status status = Status.PENDING;
+    private Status status;
 
     public enum Status {
-        PENDING,
-        PROCESSING,
-        PACKED,
-        PICKED,
-        READY_FOR_DISPATCH,
-        SHIPPED,
-        OUT_FOR_DELIVERY
+        PENDING,            // Order placed but payment not yet confirmed
+        CONFIRMED,          // Payment received and order confirmed
+        PROCESSING,         // Order is being prepared/packed
+        SHIPPED,            // Order handed over to courier
+        OUT_FOR_DELIVERY,   // Courier is delivering the order
+        DELIVERED,          // Customer received the order
+        CANCELLED,          // Order was cancelled before delivery
+        RETURNED            // Customer returned the order
     }
 
     private Map<String, LocalDateTime> timeStamps = new HashMap<>();

@@ -5,6 +5,7 @@ import com.reon.order_backend.document.User;
 import com.reon.order_backend.dto.kafka.OrderEventDTO;
 import com.reon.order_backend.dto.order.OrderCreation;
 import com.reon.order_backend.dto.order.OrderResponse;
+import com.reon.order_backend.dto.order.OrderUpdateStatus;
 import com.reon.order_backend.exception.OrderNotFoundException;
 import com.reon.order_backend.exception.UserNotFoundException;
 import com.reon.order_backend.mapper.OrderMapper;
@@ -46,9 +47,8 @@ public class OrderServiceImpl implements OrderService {
         order.setUserId(id);
         order.setStatus(Order.Status.PENDING);
 
-        // TODO: find a way to dynamically update the status..
         Map<String, LocalDateTime> timeStamp = new HashMap<>();
-        timeStamp.put("PENDING", LocalDateTime.now());
+        timeStamp.put(Order.Status.PENDING.name(), LocalDateTime.now());
         order.setTimeStamps(timeStamp);
 
         Order saveOrder = orderRepository.save(order);
@@ -86,6 +86,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public void cancelOrder(ObjectId orderId, User user) {
+        // todo:: delete the order if the status is cancelled....
         log.warn("Order Service :: Cancelling order with id: {}", orderId);
         Order order = orderRepository.findById(orderId).orElseThrow(
                 () -> new OrderNotFoundException("Order not found with id: " +  orderId)
@@ -95,6 +96,52 @@ public class OrderServiceImpl implements OrderService {
             throw new OrderNotFoundException("Order not found with id: " + orderId);
         } else {
             orderRepository.deleteById(orderId);
+        }
+    }
+
+    @Override
+    public OrderResponse updateOrder(ObjectId orderId, OrderUpdateStatus orderUpdateStatus, User user) {
+        log.info("Order Service :: Updating order with id: {}", orderId);
+        Order order = orderRepository.findById(orderId).orElseThrow(
+                () -> new OrderNotFoundException("Order not found with id: " + orderId)
+        );
+
+        /*
+            todo:: come up with a logic such that if the order is cancelled no changes can be made via terminal
+                    also
+                    if the order status is shipped or out for delivery order can't be cancelled.
+         */
+        if (!order.getUserId().equals(user.getId())) {
+            throw new OrderNotFoundException("Order not found with id: " + orderId);
+        }
+        else {
+            order.setStatus(orderUpdateStatus.getStatus());
+            Map<String, LocalDateTime> timeStamp = order.getTimeStamps();
+            if (timeStamp == null) {
+                timeStamp = new HashMap<>();
+            }
+            timeStamp.put(orderUpdateStatus.getStatus().toString(), LocalDateTime.now());
+            order.setTimeStamps(timeStamp);
+            order.setUpdateOn(LocalDateTime.now());
+
+            Order updatedOrder = orderRepository.save(order);
+
+            OrderEventDTO updatedEvent = OrderEventDTO.builder()
+                    .orderId(updatedOrder.getId())
+                    .userId(user.getId())
+                    .email(user.getEmail())
+                    .eventCreationTime(LocalDateTime.now())
+                    .items(updatedOrder.getItems())
+                    .amount(updatedOrder.getAmount())
+                    .status(updatedOrder.getStatus())
+                    .build();
+
+            CompletableFuture<SendResult<String, Object>> orderEvent =
+                    kafkaTemplate.send("order_update_event", updatedEvent);
+
+            log.info("Order Service :: Order update event sent.. {}", orderEvent);
+
+            return OrderMapper.orderResponseToUser(order);
         }
     }
 

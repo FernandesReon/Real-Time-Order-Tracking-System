@@ -3,6 +3,7 @@ package com.reon.order_backend.controller;
 import com.reon.order_backend.document.User;
 import com.reon.order_backend.dto.order.OrderCreation;
 import com.reon.order_backend.dto.order.OrderResponse;
+import com.reon.order_backend.dto.order.OrderUpdateStatus;
 import com.reon.order_backend.exception.UserNotFoundException;
 import com.reon.order_backend.repository.UserRepository;
 import com.reon.order_backend.service.OrderService;
@@ -104,5 +105,26 @@ public class OrderController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(fetchedOrder);
+    }
+
+    @PreAuthorize("hasRole('USER')")
+    @PutMapping(
+            name = "endpoint for updating the order status",
+            path = "/update/{orderId}"
+    )
+    public ResponseEntity<OrderResponse> updateOrderStatus(@PathVariable(name = "orderId") ObjectId orderId,
+                                                           @Valid @RequestBody OrderUpdateStatus orderUpdateStatus,
+                                                           Principal principal) {
+        log.info("Order Controller :: Incoming request for updating order status");
+
+        User user = userRepository.findByEmail(principal.getName()).orElseThrow(
+                () -> new UserNotFoundException("User with provided details not found.")
+        );
+
+        OrderResponse updatedOrder = orderService.updateOrder(orderId, orderUpdateStatus, user);
+        log.info("Order Controller :: Order with id: {} is updated successfully.", orderId);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(updatedOrder);
     }
 }
