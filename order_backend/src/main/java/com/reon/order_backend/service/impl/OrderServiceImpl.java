@@ -6,6 +6,7 @@ import com.reon.order_backend.dto.kafka.OrderEventDTO;
 import com.reon.order_backend.dto.order.OrderCreation;
 import com.reon.order_backend.dto.order.OrderResponse;
 import com.reon.order_backend.dto.order.OrderUpdateStatus;
+import com.reon.order_backend.exception.OrderNotCancellableException;
 import com.reon.order_backend.exception.OrderNotFoundException;
 import com.reon.order_backend.exception.UserNotFoundException;
 import com.reon.order_backend.mapper.OrderMapper;
@@ -71,6 +72,10 @@ public class OrderServiceImpl implements OrderService {
                 .build();
 
         CompletableFuture<SendResult<String, Object>> orderEvent = kafkaTemplate.send("order_event", eventDTO);
+        orderEvent.exceptionally(e -> {
+            log.error("Kafka send failed for order event: {}", e.getMessage());
+            return null;
+        });
         log.info("Order Service :: Order event sent.. {}", orderEvent.join());
 
         return OrderMapper.orderResponseToUser(saveOrder);
@@ -86,17 +91,38 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public void cancelOrder(ObjectId orderId, User user) {
-        // todo:: delete the order if the status is cancelled....
         log.warn("Order Service :: Cancelling order with id: {}", orderId);
-        Order order = orderRepository.findById(orderId).orElseThrow(
-                () -> new OrderNotFoundException("Order not found with id: " +  orderId)
-        );
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> {
+                    log.warn("Order Service :: Order not found with id: {}", orderId);
+                    return new OrderNotFoundException("Order not found with id: " + orderId);
+                });
 
         if (!order.getUserId().equals(user.getId())) {
-            throw new OrderNotFoundException("Order not found with id: " + orderId);
-        } else {
-            orderRepository.deleteById(orderId);
+            log.warn("Order Service :: Unauthorized access. Order {} belongs to a different user.", orderId);
+            throw new OrderNotFoundException("You do not own this order.");
         }
+
+        // Prevent deleting orders that have reached terminal or delivery stages
+        if (!isOrderCancellable(order.getStatus())) {
+            log.warn("Order Service :: Attempt to delete order {} in non-cancellable state: {}", orderId, order.getStatus());
+            throw new OrderNotCancellableException(
+                    "Cannot cancel or delete order once it is " + order.getStatus()
+            );
+        }
+
+        orderRepository.deleteById(orderId);
+        log.info("Order Service :: Order deleted from database: {}", orderId);
+
+        boolean removed = user.getOrderList().removeIf(o -> o.getId().equals(orderId));
+        if (removed) {
+            userRepository.save(user);
+            log.info("Order Service :: Order reference removed from user: {}", user.getEmail());
+        } else {
+            log.warn("Order Service :: Order reference not found in user's list: {}", orderId);
+        }
+
+        log.info("Order Service :: Cancellation completed for orderId: {}", orderId);
     }
 
     @Override
@@ -106,43 +132,66 @@ public class OrderServiceImpl implements OrderService {
                 () -> new OrderNotFoundException("Order not found with id: " + orderId)
         );
 
-        /*
-            todo:: come up with a logic such that if the order is cancelled no changes can be made via terminal
-                    also
-                    if the order status is shipped or out for delivery order can't be cancelled.
-         */
         if (!order.getUserId().equals(user.getId())) {
             throw new OrderNotFoundException("Order not found with id: " + orderId);
         }
-        else {
-            order.setStatus(orderUpdateStatus.getStatus());
-            Map<String, LocalDateTime> timeStamp = order.getTimeStamps();
-            if (timeStamp == null) {
-                timeStamp = new HashMap<>();
-            }
-            timeStamp.put(orderUpdateStatus.getStatus().toString(), LocalDateTime.now());
-            order.setTimeStamps(timeStamp);
-            order.setUpdateOn(LocalDateTime.now());
 
-            Order updatedOrder = orderRepository.save(order);
+        Order.Status newStatus = getStatus(orderUpdateStatus, order);
 
-            OrderEventDTO updatedEvent = OrderEventDTO.builder()
-                    .orderId(updatedOrder.getId())
-                    .userId(user.getId())
-                    .email(user.getEmail())
-                    .eventCreationTime(LocalDateTime.now())
-                    .items(updatedOrder.getItems())
-                    .amount(updatedOrder.getAmount())
-                    .status(updatedOrder.getStatus())
-                    .build();
-
-            CompletableFuture<SendResult<String, Object>> orderEvent =
-                    kafkaTemplate.send("order_update_event", updatedEvent);
-
-            log.info("Order Service :: Order update event sent.. {}", orderEvent);
-
-            return OrderMapper.orderResponseToUser(order);
+        order.setStatus(newStatus);
+        Map<String, LocalDateTime> timeStamps = order.getTimeStamps();
+        if (timeStamps == null) {
+            timeStamps = new HashMap<>();
         }
+        timeStamps.put(newStatus.name(), LocalDateTime.now());
+        order.setTimeStamps(timeStamps);
+        order.setUpdateOn(LocalDateTime.now());
+
+        Order updatedOrder = orderRepository.save(order);
+
+        OrderEventDTO updatedEvent = OrderEventDTO.builder()
+                .orderId(updatedOrder.getId())
+                .userId(user.getId())
+                .email(user.getEmail())
+                .eventCreationTime(LocalDateTime.now())
+                .items(updatedOrder.getItems())
+                .amount(updatedOrder.getAmount())
+                .status(updatedOrder.getStatus())
+                .build();
+
+        CompletableFuture<SendResult<String, Object>> orderEvent = kafkaTemplate.send("order_update_event", updatedEvent);
+        orderEvent.exceptionally(e -> {
+            log.error("Kafka send failed for order update: {}", e.getMessage());
+            return null;
+        });
+        log.info("Order Service :: Order update event sent for status: {}", newStatus);
+
+        return OrderMapper.orderResponseToUser(updatedOrder);
+    }
+
+    private Order.Status getStatus(OrderUpdateStatus orderUpdateStatus, Order order) {
+        Order.Status currentStatus = order.getStatus();
+        Order.Status newStatus = orderUpdateStatus.getStatus();
+
+        // Once cancelled, no further updates are allowed
+        if (currentStatus == Order.Status.CANCELLED) {
+            throw new OrderNotCancellableException("Order is cancelled and cannot be updated further.");
+        }
+
+        // Prevent backward movement (e.g., SHIPPED → PROCESSING)
+        if (newStatus.ordinal() < currentStatus.ordinal()) {
+            throw new OrderNotCancellableException(
+                    "Invalid status update: cannot move backward from " + currentStatus + " to " + newStatus
+            );
+        }
+
+        // Allow cancellation only for early stages
+        if (newStatus == Order.Status.CANCELLED && !isOrderCancellable(currentStatus)) {
+            throw new OrderNotCancellableException(
+                    "Cannot cancel order once it has reached " + currentStatus + " stage."
+            );
+        }
+        return newStatus;
     }
 
     @Override
@@ -157,5 +206,12 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return OrderMapper.orderResponseToUser(order);
+    }
+
+    private boolean isOrderCancellable(Order.Status status) {
+        return status == Order.Status.PENDING
+                || status == Order.Status.CONFIRMED
+                || status == Order.Status.PROCESSING
+                || status == Order.Status.PACKED;
     }
 }

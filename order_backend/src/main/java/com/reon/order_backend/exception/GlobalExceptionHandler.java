@@ -46,4 +46,12 @@ public class GlobalExceptionHandler {
         error.put("order", "Order not found");
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
+
+    @ExceptionHandler(OrderNotCancellableException.class)
+    public ResponseEntity<Map<String, String>> handleOrderNotCancellableException(OrderNotCancellableException exception) {
+        log.info("order cancel exception :: {}", exception.getMessage());
+        Map<String, String> error = new HashMap<>();
+        error.put("order", "Order not cancellable");
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
 }

@@ -34,7 +34,8 @@ public class Order {
     public enum Status {
         PENDING,            // Order placed but payment not yet confirmed
         CONFIRMED,          // Payment received and order confirmed
-        PROCESSING,         // Order is being prepared/packed
+        PROCESSING,         // Order is being prepared
+        PACKED,             // Order is packed
         SHIPPED,            // Order handed over to courier
         OUT_FOR_DELIVERY,   // Courier is delivering the order
         DELIVERED,          // Customer received the order
