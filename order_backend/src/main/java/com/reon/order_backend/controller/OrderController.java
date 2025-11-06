@@ -7,12 +7,22 @@ import com.reon.order_backend.dto.order.OrderUpdateStatus;
 import com.reon.order_backend.exception.UserNotFoundException;
 import com.reon.order_backend.repository.UserRepository;
 import com.reon.order_backend.service.OrderService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+
 import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,7 +34,12 @@ import java.security.Principal;
         path = "/api/v1/order"
 )
 @Slf4j
+@Tag(
+        name = "Order APIs",
+        description = "These endpoints are related to placing, tracking and managing orders. Only accessible after authentication."
+)
 public class OrderController {
+
     private final OrderService orderService;
     private final UserRepository userRepository;
 
@@ -34,97 +49,114 @@ public class OrderController {
     }
 
     @PreAuthorize("hasRole('USER')")
-    @PostMapping(
-            name = "endpoint for generating new order",
-            path = "/generateOrder"
+    @PostMapping(path = "/generateOrder")
+    @Operation(
+            summary = "Generate a new Order",
+            description = "Creates and saves a new order against the logged-in user."
     )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Order created successfully",
+                    content = @Content(schema = @Schema(implementation = OrderResponse.class)))
+    })
     public ResponseEntity<OrderResponse> generateOrder(@Valid @RequestBody OrderCreation createOrder,
                                                        Principal principal) {
-        log.info("Order Controller :: Incoming request for generating new order: {}", createOrder);
-        User user = userRepository.findByEmail(principal.getName()).orElseThrow(
-                () -> new UserNotFoundException("User not found with provided details.")
-        );
+
+        log.info("OrderController :: Request to generate order: {}", createOrder);
+
+        User user = userRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new UserNotFoundException("User not found."));
+
         OrderResponse response = orderService.createOrder(createOrder, user.getId());
-        log.info("Order Controller :: Order generation: {} was successful for id: {}", createOrder, user.getId());
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
+
+        log.info("OrderController :: Order successfully created for userId: {}", user.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PreAuthorize("hasRole('USER')")
-    @GetMapping(
-            name = "endpoint for fetching all orders",
-            path = "/orders"
+    @GetMapping(path = "/orders")
+    @Operation(
+            summary = "Fetch user's orders",
+            description = "Returns paginated list of logged-in user's orders."
     )
-    public ResponseEntity<Page<OrderResponse>> fetchOrders(@RequestParam(name = "page", defaultValue = "0") int pageNo,
-                                                           @RequestParam(name = "size", defaultValue = "10") int pageSize,
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Orders fetched successfully",
+                    content = @Content(schema = @Schema(implementation = Page.class)))
+    })
+    public ResponseEntity<Page<OrderResponse>> fetchOrders(@RequestParam(defaultValue = "0") int page,
+                                                           @RequestParam(defaultValue = "10") int size,
                                                            Principal principal) {
-        log.info("Order Controller :: Incoming request for fetching order from page: {} of size: {}", pageNo, pageSize);
-        User user = userRepository.findByEmail(principal.getName()).orElseThrow(
-                () -> new UserNotFoundException("User with provided details not found.")
-        );
-        Page<OrderResponse> orders = orderService.fetchAllOrders(pageNo, pageSize, user);
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(orders);
+
+        log.info("OrderController :: Fetching orders page: {}, size: {}", page, size);
+
+        User user = userRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new UserNotFoundException("User not found."));
+
+        Page<OrderResponse> orders = orderService.fetchAllOrders(page, size, user);
+        return ResponseEntity.ok(orders);
     }
 
     @PreAuthorize("hasRole('USER')")
-    @DeleteMapping(
-            name = "endpoint for cancelling order",
-            path = "/cancel/{orderId}"
+    @GetMapping(path = "/fetch/{orderId}")
+    @Operation(
+            summary = "Fetch specific order details",
+            description = "Fetch details of a particular order using orderId."
     )
-    public ResponseEntity<Void> cancelOrder(@PathVariable(name = "orderId")ObjectId orderId, Principal principal) {
-        log.info("Order Controller :: Incoming request for cancelling order with id: {}", orderId);
-        User user = userRepository.findByEmail(principal.getName()).orElseThrow(
-                () -> new UserNotFoundException("User with provided details not found.")
-        );
-        orderService.cancelOrder(orderId, user);
-
-        log.info("Order Controller :: Order with id: {} is cancelled successfully.", orderId);
-        return ResponseEntity
-                .status(HttpStatus.NO_CONTENT)
-                .build();
-    }
-
-    @PreAuthorize("hasRole('USER')")
-    @GetMapping(
-            name = "endpoint for fetching specific order",
-            path = "/fetch/{orderId}"
-    )
-    public ResponseEntity<OrderResponse> getOrderById(@PathVariable(name = "orderId")ObjectId orderId,
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Order fetched successfully",
+                    content = @Content(schema = @Schema(implementation = OrderResponse.class)))
+    })
+    public ResponseEntity<OrderResponse> getOrderById(@PathVariable ObjectId orderId,
                                                       Principal principal) {
-        log.info("Order Controller :: Incoming request for fetching order with id: {}", orderId);
 
-        User user = userRepository.findByEmail(principal.getName()).orElseThrow(
-                () -> new UserNotFoundException("User with provided details not found.")
-        );
+        log.info("OrderController :: Fetching order id: {}", orderId);
+
+        User user = userRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new UserNotFoundException("User not found."));
 
         OrderResponse fetchedOrder = orderService.fetchOrderViaId(orderId, user);
-        log.info("Order Controller :: Order with id: {} is fetched successfully.", orderId);
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(fetchedOrder);
+        return ResponseEntity.ok(fetchedOrder);
     }
 
     @PreAuthorize("hasRole('USER')")
-    @PutMapping(
-            name = "endpoint for updating the order status",
-            path = "/update/{orderId}"
+    @DeleteMapping(path = "/cancel/{orderId}")
+    @Operation(
+            summary = "Cancel an order",
+            description = "Cancels the specified order if cancellation is allowed."
     )
-    public ResponseEntity<OrderResponse> updateOrderStatus(@PathVariable(name = "orderId") ObjectId orderId,
-                                                           @Valid @RequestBody OrderUpdateStatus orderUpdateStatus,
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Order cancelled successfully")
+    })
+    public ResponseEntity<Void> cancelOrder(@PathVariable ObjectId orderId, Principal principal) {
+
+        log.info("OrderController :: Cancel order request id: {}", orderId);
+
+        User user = userRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new UserNotFoundException("User not found."));
+
+        orderService.cancelOrder(orderId, user);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasRole('USER')")
+    @PutMapping(path = "/update/{orderId}")
+    @Operation(
+            summary = "Update order status",
+            description = "Updates an order's status using given orderId."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Order status updated successfully",
+                    content = @Content(schema = @Schema(implementation = OrderResponse.class)))
+    })
+    public ResponseEntity<OrderResponse> updateOrderStatus(@PathVariable ObjectId orderId,
+                                                           @Valid @RequestBody OrderUpdateStatus request,
                                                            Principal principal) {
-        log.info("Order Controller :: Incoming request for updating order status");
 
-        User user = userRepository.findByEmail(principal.getName()).orElseThrow(
-                () -> new UserNotFoundException("User with provided details not found.")
-        );
+        log.info("OrderController :: Update order status request id: {}", orderId);
 
-        OrderResponse updatedOrder = orderService.updateOrder(orderId, orderUpdateStatus, user);
-        log.info("Order Controller :: Order with id: {} is updated successfully.", orderId);
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(updatedOrder);
+        User user = userRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new UserNotFoundException("User not found."));
+
+        OrderResponse updatedOrder = orderService.updateOrder(orderId, request, user);
+        return ResponseEntity.ok(updatedOrder);
     }
 }

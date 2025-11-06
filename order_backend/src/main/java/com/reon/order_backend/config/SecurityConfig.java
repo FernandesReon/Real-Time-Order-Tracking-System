@@ -35,7 +35,10 @@ public class SecurityConfig {
                                 auth
                                         .requestMatchers("/api/v1/auth/**").permitAll()
                                         .requestMatchers("/api/v1/order/**").authenticated()
-                                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN"))
+                                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
+                                        "/swagger-resources/**", "/webjars/**").permitAll()
+                                .anyRequest().authenticated())
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
