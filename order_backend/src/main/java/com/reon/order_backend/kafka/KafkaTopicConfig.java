@@ -1,4 +1,4 @@
-package com.reon.order_backend.config;
+package com.reon.order_backend.kafka;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.context.annotation.Bean;
